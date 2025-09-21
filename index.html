@@ -57,12 +57,6 @@
       </main>
     </div>
 
-    <div id="message-screen" class="flex items-center justify-center h-screen">
-      <div class="text-center">
-        <p class="text-gray-400 text-lg">Memverifikasi akses...</p>
-      </div>
-    </div>
-
     <div id="login-screen" class="flex items-center justify-center h-screen">
       <div class="text-center">
         <h2 class="text-2xl font-bold mb-4">Admin Login</h2>
@@ -118,7 +112,6 @@
       // --- REFERENSI DOM ---
       const DOMElements = {
         adminApp: document.getElementById("admin-app"),
-        messageScreen: document.getElementById("message-screen"),
         jsonEditor: document.getElementById("json-editor"),
         editBtn: document.getElementById("edit-btn"),
         submitBtn: document.getElementById("submit-btn"),
@@ -228,7 +221,6 @@
             // Pengguna adalah Super Admin
             DOMElements.adminApp.classList.remove("hidden");
             DOMElements.loginScreen.classList.add("hidden");
-            DOMElements.messageScreen.classList.add("hidden");
 
             await loadDatabaseAsJson();
 
@@ -244,8 +236,6 @@
               signOut(auth)
             );
           } else {
-            // Bukan Admin
-            DOMElements.messageScreen.innerHTML = `<div class="text-center"><h1 class="text-4xl font-bold text-red-600">Akses Ditolak</h1><p class="text-gray-400 mt-2">Akun Anda tidak terdaftar sebagai Super Admin.</p></div>`;
 
                   DOMElements.adminApp.classList.add("hidden");
       DOMElements.loginScreen.classList.remove("hidden");
@@ -268,5 +258,6 @@
     </script>
   </body>
 </html>
+
 
 
