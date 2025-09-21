@@ -236,21 +236,20 @@
               signOut(auth)
             );
           } else {
-
-                  DOMElements.adminApp.classList.add("hidden");
-      DOMElements.loginScreen.classList.remove("hidden");
+            DOMElements.adminApp.classList.add("hidden");
+            DOMElements.loginScreen.classList.remove("hidden");
       
-      // Inisialisasi Google Sign-In
-      google.accounts.id.initialize({
-        client_id: "115946460349-n6vhst1jhcdhhpk9e3tqigefmerv6bpu.apps.googleusercontent.com",
-        callback: handleGsiCallback, // Fungsi yang akan dipanggil setelah login berhasil
-      });
+            // Inisialisasi Google Sign-In
+            google.accounts.id.initialize({
+            client_id: "115946460349-n6vhst1jhcdhhpk9e3tqigefmerv6bpu.apps.googleusercontent.com",
+            callback: handleGsiCallback, // Fungsi yang akan dipanggil setelah login berhasil
+            });
 
-      // Render tombol Google di dalam container
-      google.accounts.id.renderButton(
-        document.getElementById("gsi-container"),
-        { theme: "outline", size: "large", type: "standard" } // Opsi tampilan tombol
-      );
+            // Render tombol Google di dalam container
+            google.accounts.id.renderButton(
+            document.getElementById("gsi-container"),
+            { theme: "outline", size: "large", type: "standard" } // Opsi tampilan tombol
+            );
           }
         } else {
         }
@@ -258,6 +257,3 @@
     </script>
   </body>
 </html>
-
-
-
