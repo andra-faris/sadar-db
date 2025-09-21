@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSON Editor - Super Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* Memberi tinggi maksimal dan memastikan font monospace untuk editor */
+      #json-editor {
+        height: calc(100vh - 10rem);
+        font-family: "Inter", sans-serif;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-800 text-white">
+    <div id="admin-app" class="hidden">
+      <header
+        class="bg-gray-900 p-4 flex justify-between items-center shadow-lg"
+      >
+        <h1 class="text-2xl font-bold">sadar. db JSON Editor</h1>
+        <div class="flex items-center gap-4">
+          <span id="status-message" class="text-sm text-gray-400"></span>
+          <button
+            id="edit-btn"
+            class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
+          >
+            Edit
+          </button>
+          <button
+            id="submit-btn"
+            class="hidden bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
+          >
+            Simpan Perubahan
+          </button>
+          <button
+            id="admin-logout-btn"
+            class="bg-red-600 py-2 px-4 rounded hover:bg-red-700"
+          >
+            Logout
+          </button>
+        </div>
+      </header>
+      <main class="p-4">
+        <textarea
+          id="json-editor"
+          class="w-full p-4 bg-gray-700 text-cyan-400 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          readonly
+        ></textarea>
+      </main>
+    </div>
+
+    <div id="message-screen" class="flex items-center justify-center h-screen">
+      <div class="text-center">
+        <p class="text-gray-400 text-lg">Memverifikasi akses...</p>
+      </div>
+    </div>
+
+    <script type="module">
+      // Impor Firebase
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+      import {
+        getAuth,
+        onAuthStateChanged,
+        signOut,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+      import {
+        getFirestore,
+        collection,
+        getDocs,
+        getDoc,
+        doc,
+        setDoc,
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+      // --- KONFIGURASI ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyAemm2qCSpMkJwHYeFqmBUl6eANKO66-dc",
+        authDomain: "sadar-by-bisa.firebaseapp.com",
+        projectId: "sadar-by-bisa",
+        storageBucket: "sadar-by-bisa.firebasestorage.app",
+        messagingSenderId: "115946460349",
+        appId: "1:115946460349:web:a5f7eb27c98f7a34ac53d4",
+      };
+      const COLLECTIONS_TO_MANAGE = [
+        "users",
+        "missions",
+        "daily_missions",
+        "articles",
+        "videos",
+        "posts",
+      ];
+
+      // --- INISIALISASI ---
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      // --- REFERENSI DOM ---
+      const DOMElements = {
+        adminApp: document.getElementById("admin-app"),
+        messageScreen: document.getElementById("message-screen"),
+        jsonEditor: document.getElementById("json-editor"),
+        editBtn: document.getElementById("edit-btn"),
+        submitBtn: document.getElementById("submit-btn"),
+        logoutBtn: document.getElementById("admin-logout-btn"),
+        statusMessage: document.getElementById("status-message"),
+      };
+
+      // --- FUNGSI UTAMA ---
+
+      // Fungsi untuk memuat seluruh database menjadi satu objek JSON
+      const loadDatabaseAsJson = async () => {
+        DOMElements.statusMessage.textContent = "Memuat data...";
+        const fullDatabase = {};
+
+        try {
+          const collectionPromises = COLLECTIONS_TO_MANAGE.map(
+            async (colName) => {
+              const colRef = collection(db, colName);
+              const snapshot = await getDocs(colRef);
+              fullDatabase[colName] = {};
+              snapshot.forEach((doc) => {
+                fullDatabase[colName][doc.id] = doc.data();
+              });
+            }
+          );
+          await Promise.all(collectionPromises);
+
+          DOMElements.jsonEditor.value = JSON.stringify(fullDatabase, null, 2);
+          DOMElements.statusMessage.textContent = "Data berhasil dimuat.";
+        } catch (error) {
+          console.error("Gagal memuat database:", error);
+          DOMElements.statusMessage.textContent = "Gagal memuat data!";
+          DOMElements.jsonEditor.value = `Error: ${error.message}`;
+        }
+      };
+
+      // Fungsi untuk menyimpan JSON kembali ke Firestore
+      const saveJsonToDatabase = async () => {
+        if (
+          !confirm(
+            "PERINGATAN: Aksi ini akan menimpa seluruh data di koleksi yang tercantum. Apakah Anda benar-benar yakin?"
+          )
+        ) {
+          return;
+        }
+        DOMElements.statusMessage.textContent = "Menyimpan...";
+        DOMElements.submitBtn.disabled = true;
+
+        try {
+          const jsonString = DOMElements.jsonEditor.value;
+          const newData = JSON.parse(jsonString); // Validasi JSON
+
+          const savePromises = Object.entries(newData).map(
+            async ([collectionName, documents]) => {
+              console.log(`Menyimpan koleksi: ${collectionName}...`);
+              // Buat promise untuk setiap dokumen di dalam koleksi
+              const docPromises = Object.entries(documents).map(
+                ([docId, docData]) => {
+                  return setDoc(doc(db, collectionName, docId), docData);
+                }
+              );
+              await Promise.all(docPromises);
+            }
+          );
+
+          await Promise.all(savePromises);
+
+          DOMElements.statusMessage.textContent =
+            "Semua perubahan berhasil disimpan!";
+          DOMElements.jsonEditor.readOnly = true;
+          DOMElements.editBtn.classList.remove("hidden");
+          DOMElements.submitBtn.classList.add("hidden");
+        } catch (error) {
+          console.error("Gagal menyimpan ke database:", error);
+          DOMElements.statusMessage.textContent = "Error! Gagal menyimpan.";
+          alert(
+            `Gagal menyimpan! Pastikan format JSON sudah benar.\n\nError: ${error.message}`
+          );
+        } finally {
+          DOMElements.submitBtn.disabled = false;
+        }
+      };
+
+      // --- ALUR AUTENTIKASI & EVENT LISTENERS ---
+      onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          const adminDocRef = doc(db, "super-admin", user.email);
+          const adminDocSnap = await getDoc(adminDocRef);
+
+          if (adminDocSnap.exists()) {
+            // Pengguna adalah Super Admin
+            DOMElements.adminApp.classList.remove("hidden");
+            DOMElements.messageScreen.classList.add("hidden");
+
+            await loadDatabaseAsJson();
+
+            DOMElements.editBtn.addEventListener("click", () => {
+              DOMElements.jsonEditor.readOnly = false;
+              DOMElements.editBtn.classList.add("hidden");
+              DOMElements.submitBtn.classList.remove("hidden");
+              DOMElements.statusMessage.textContent = "Mode Edit Aktif";
+            });
+
+            DOMElements.submitBtn.addEventListener("click", saveJsonToDatabase);
+            DOMElements.logoutBtn.addEventListener("click", () =>
+              signOut(auth)
+            );
+          } else {
+            // Bukan Admin
+            DOMElements.messageScreen.innerHTML = `<div class="text-center"><h1 class="text-4xl font-bold text-red-600">Akses Ditolak</h1><p class="text-gray-400 mt-2">Akun Anda tidak terdaftar sebagai Super Admin.</p></div>`;
+          }
+        } else {
+          window.location.href = "login.html"; // Ganti dengan path halaman login Anda
+        }
+      });
+    </script>
+  </body>
+</html>
