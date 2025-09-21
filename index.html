@@ -61,9 +61,10 @@
       <div class="text-center">
         <h2 class="text-2xl font-bold mb-4">Admin Login</h2>
         <p class="text-gray-400 mb-6">
-        Silakan login menggunakan akun Google Super Admin Anda.
+          Silakan login menggunakan akun Google Super Admin Anda.
         </p>
         <div id="gsi-container" class="flex justify-center"></div>
+        <p id="login-error" class="text-red-500 mt-4"></p>
       </div>
     </div>
 
@@ -112,11 +113,13 @@
       // --- REFERENSI DOM ---
       const DOMElements = {
         adminApp: document.getElementById("admin-app"),
+        loginScreen: document.getElementById("login-screen"),
         jsonEditor: document.getElementById("json-editor"),
         editBtn: document.getElementById("edit-btn"),
         submitBtn: document.getElementById("submit-btn"),
         logoutBtn: document.getElementById("admin-logout-btn"),
         statusMessage: document.getElementById("status-message"),
+        loginError: document.getElementById("login-error"),
       };
 
       // --- FUNGSI UTAMA ---
@@ -196,31 +199,31 @@
       };
 
       async function handleGsiCallback(response) {
-    // Dapatkan token ID dari respons Google
-    const idToken = response.credential;
-    // Buat kredensial Firebase menggunakan token ID Google
-    const credential = GoogleAuthProvider.credential(idToken);
+        DOMElements.loginError.textContent = "Memverifikasi dengan Firebase...";
+        const idToken = response.credential;
+        const credential = GoogleAuthProvider.credential(idToken);
 
-    try {
-      // Login ke Firebase menggunakan kredensial tersebut
-      await signInWithCredential(auth, credential);
-      // onAuthStateChanged akan otomatis terpanggil lagi dan menampilkan halaman admin
-    } catch (error) {
-      console.error("Firebase sign-in error:", error);
-      alert("Gagal login dengan Firebase. Cek konsol untuk detail.");
-    }
-  }
+        try {
+          await signInWithCredential(auth, credential);
+          // Setelah berhasil, onAuthStateChanged akan berjalan otomatis
+          // dan menyembunyikan layar login.
+          DOMElements.loginError.textContent = "";
+        } catch (error) {
+          console.error("Firebase sign-in error:", error);
+          DOMElements.loginError.textContent = "Gagal login. Coba lagi.";
+        }
+      }
 
       // --- ALUR AUTENTIKASI & EVENT LISTENERS ---
       onAuthStateChanged(auth, async (user) => {
         if (user) {
+          DOMElements.loginScreen.classList.add("hidden"); // Sembunyikan login screen
           const adminDocRef = doc(db, "super-admin", user.email);
           const adminDocSnap = await getDoc(adminDocRef);
 
           if (adminDocSnap.exists()) {
             // Pengguna adalah Super Admin
             DOMElements.adminApp.classList.remove("hidden");
-            DOMElements.loginScreen.classList.add("hidden");
 
             await loadDatabaseAsJson();
 
@@ -236,22 +239,37 @@
               signOut(auth)
             );
           } else {
-            DOMElements.adminApp.classList.add("hidden");
+            // Bukan Admin
             DOMElements.loginScreen.classList.remove("hidden");
-      
-            // Inisialisasi Google Sign-In
-            google.accounts.id.initialize({
-            client_id: "115946460349-n6vhst1jhcdhhpk9e3tqigefmerv6bpu.apps.googleusercontent.com",
-            callback: handleGsiCallback, // Fungsi yang akan dipanggil setelah login berhasil
-            });
-
-            // Render tombol Google di dalam container
-            google.accounts.id.renderButton(
-            document.getElementById("gsi-container"),
-            { theme: "outline", size: "large", type: "standard" } // Opsi tampilan tombol
-            );
+            DOMElements.loginScreen.innerHTML = `<div class="text-center"><h1 class="text-4xl font-bold text-red-600">Akses Ditolak</h1><p class="text-gray-400 mt-2">Akun Anda (${user.email}) tidak terdaftar sebagai Super Admin.</p></div>`;
+            await signOut(auth); // Langsung logout jika bukan admin
           }
         } else {
+          // Tidak ada user, tampilkan layar login dengan tombol GSI
+          DOMElements.adminApp.classList.add("hidden");
+          DOMElements.loginScreen.classList.remove("hidden");
+
+          try {
+            google.accounts.id.initialize({
+              client_id:
+                "115946460349-n6vhst1jhcdhhpk9e3tqigefmerv6bpu.apps.googleusercontent.com",
+              callback: handleGsiCallback,
+            });
+
+            google.accounts.id.renderButton(
+              document.getElementById("gsi-container"),
+              {
+                theme: "outline",
+                size: "large",
+                type: "standard",
+                shape: "pill",
+              }
+            );
+          } catch (e) {
+            console.error("Google GSI Error:", e);
+            DOMElements.loginError.textContent =
+              "Gagal memuat tombol login. Pastikan tidak ada ad-blocker.";
+          }
         }
       });
     </script>
