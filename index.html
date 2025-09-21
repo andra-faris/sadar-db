@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JSON Editor - Super Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -62,6 +63,16 @@
       </div>
     </div>
 
+    <div id="login-screen" class="flex items-center justify-center h-screen">
+      <div class="text-center">
+        <h2 class="text-2xl font-bold mb-4">Admin Login</h2>
+        <p class="text-gray-400 mb-6">
+        Silakan login menggunakan akun Google Super Admin Anda.
+        </p>
+        <div id="gsi-container" class="flex justify-center"></div>
+      </div>
+    </div>
+
     <script type="module">
       // Impor Firebase
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -69,6 +80,8 @@
         getAuth,
         onAuthStateChanged,
         signOut,
+        GoogleAuthProvider,
+        signInWithCredential,
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
       import {
         getFirestore,
@@ -189,6 +202,22 @@
         }
       };
 
+      async function handleGsiCallback(response) {
+    // Dapatkan token ID dari respons Google
+    const idToken = response.credential;
+    // Buat kredensial Firebase menggunakan token ID Google
+    const credential = GoogleAuthProvider.credential(idToken);
+
+    try {
+      // Login ke Firebase menggunakan kredensial tersebut
+      await signInWithCredential(auth, credential);
+      // onAuthStateChanged akan otomatis terpanggil lagi dan menampilkan halaman admin
+    } catch (error) {
+      console.error("Firebase sign-in error:", error);
+      alert("Gagal login dengan Firebase. Cek konsol untuk detail.");
+    }
+  }
+
       // --- ALUR AUTENTIKASI & EVENT LISTENERS ---
       onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -198,6 +227,7 @@
           if (adminDocSnap.exists()) {
             // Pengguna adalah Super Admin
             DOMElements.adminApp.classList.remove("hidden");
+            DOMElements.loginScreen.classList.add("hidden");
             DOMElements.messageScreen.classList.add("hidden");
 
             await loadDatabaseAsJson();
@@ -216,6 +246,21 @@
           } else {
             // Bukan Admin
             DOMElements.messageScreen.innerHTML = `<div class="text-center"><h1 class="text-4xl font-bold text-red-600">Akses Ditolak</h1><p class="text-gray-400 mt-2">Akun Anda tidak terdaftar sebagai Super Admin.</p></div>`;
+
+                  DOMElements.adminApp.classList.add("hidden");
+      DOMElements.loginScreen.classList.remove("hidden");
+      
+      // Inisialisasi Google Sign-In
+      google.accounts.id.initialize({
+        client_id: "115946460349-n6vhst1jhcdhhpk9e3tqigefmerv6bpu.apps.googleusercontent.com",
+        callback: handleGsiCallback, // Fungsi yang akan dipanggil setelah login berhasil
+      });
+
+      // Render tombol Google di dalam container
+      google.accounts.id.renderButton(
+        document.getElementById("gsi-container"),
+        { theme: "outline", size: "large", type: "standard" } // Opsi tampilan tombol
+      );
           }
         } else {
         }
@@ -223,4 +268,5 @@
     </script>
   </body>
 </html>
+
 
